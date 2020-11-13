@@ -1,0 +1,16 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/mnt/c/Users/Kril/CLionProjects/raytracer/ppm.cpp
+ppm.h
+/mnt/c/Users/Kril/CLionProjects/raytracer/ppm.h
+stdexcept
+-
+
+/mnt/c/Users/Kril/CLionProjects/raytracer/ppm.h
+

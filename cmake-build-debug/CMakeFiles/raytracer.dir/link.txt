@@ -1,0 +1,1 @@
+/usr/bin/c++  -g   CMakeFiles/raytracer.dir/raytracer.cpp.o CMakeFiles/raytracer.dir/parser.cpp.o CMakeFiles/raytracer.dir/tinysml2.cpp.o CMakeFiles/raytracer.dir/util.cpp.o CMakeFiles/raytracer.dir/ppm.cpp.o  -o raytracer 
