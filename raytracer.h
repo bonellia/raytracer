@@ -11,7 +11,7 @@ public:
     parser::Vec3f Cross(const parser::Vec3f& lhs, const parser::Vec3f& rhs);
     float Dot(const parser::Vec3f& lhs, const parser::Vec3f& rhs);
     // Multiplies a vector with the given float number on left-hand-side.
-    parser::Vec3f Multiply(const float &lhs, const parser::Vec3f &rhs);
+    parser::Vec3f Scale(const float &lhs, const parser::Vec3f &rhs);
     // Adds two vectors.
     parser::Vec3f Add(const parser::Vec3f &lhs, const parser::Vec3f& rhs);
     // Subtracts two vectors.

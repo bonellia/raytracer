@@ -17,7 +17,7 @@ float RayTracer::Dot(const parser::Vec3f &lhs, const parser::Vec3f &rhs) {
     return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
 }
 
-parser::Vec3f RayTracer::Multiply(const float &lhs, const parser::Vec3f &rhs) {
+parser::Vec3f RayTracer::Scale(const float &lhs, const parser::Vec3f &rhs) {
     parser::Vec3f vector;
     vector.x = lhs * rhs.x;
     vector.y = lhs * rhs.y;
@@ -65,7 +65,14 @@ parser::Ray RayTracer::GenerateEyeRay(int x, int y, parser::Camera cam) {
     parser::Vec3f su, sv, s;
     ray.origin = cam.position;
     float pixel_width = cam.near_plane.y - cam.near_plane.x / (float) cam.image_width;
-    // TODO: continue with su sv.
+    float pixel_height = (cam.near_plane.w - cam.near_plane.z) / cam.image_height;
+    // TODO: continue with su & sv.
+    parser::Vec3f cam_u = Cross(cam.gaze, cam.up);
+    su = Scale(cam.near_plane.x + (x + 0.5) * (pixel_width), cam_u);
+    sv = Scale(cam.near_plane.z + (x + 0.5) * (pixel_height), cam.up);
+    s = Add(su, sv);
+
+    ray.direction = Add(Scale(cam.near_distance, cam.gaze), s);
     return ray;
 }
 
@@ -74,9 +81,9 @@ unsigned char *RayTracer::InitializeImage(int width, int height) {
     int i = 0;
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
+            image[i++] = 0;
+            image[i++] = 0;
             image[i++] = 255;
-            image[i++] = 0;
-            image[i++] = 0;
         }
     }
     return image;
