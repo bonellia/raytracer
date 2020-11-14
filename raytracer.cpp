@@ -6,18 +6,18 @@
 
 typedef unsigned char RGB[3];
 
-parser::Vec3f Cross(const parser::Vec3f &lhs, const parser::Vec3f &rhs) {
+parser::Vec3f RayTracer::Cross(const parser::Vec3f &lhs, const parser::Vec3f &rhs) {
     return {
             lhs.y * rhs.z - rhs.y * lhs.z,
             rhs.x * lhs.z - lhs.x * rhs.z,
             lhs.x * rhs.y - rhs.x * lhs.y};
 }
 
-float Dot(const parser::Vec3f &lhs, const parser::Vec3f &rhs) {
+float RayTracer::Dot(const parser::Vec3f &lhs, const parser::Vec3f &rhs) {
     return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
 }
 
-parser::Vec3f operator*(const float &lhs, const parser::Vec3f &rhs){
+parser::Vec3f RayTracer::Multiply(const float &lhs, const parser::Vec3f &rhs) {
     parser::Vec3f vector;
     vector.x = lhs * rhs.x;
     vector.y = lhs * rhs.y;
@@ -25,25 +25,33 @@ parser::Vec3f operator*(const float &lhs, const parser::Vec3f &rhs){
     return vector;
 }
 
-parser::Vec3f operator+(const parser::Vec3f &lhs, const parser::Vec3f &rhs) {
+parser::Vec3f RayTracer::Add(const parser::Vec3f &lhs, const parser::Vec3f &rhs) {
     return {
             lhs.x + rhs.x,
             lhs.y + rhs.y,
             lhs.z + rhs.z};
 }
 
-parser::Vec3f operator-(const parser::Vec3f &lhs, const parser::Vec3f &rhs) {
+parser::Vec3f RayTracer::Subtract(const parser::Vec3f &lhs, const parser::Vec3f &rhs) {
     return {
             lhs.x - rhs.x,
             lhs.y - rhs.y,
             lhs.z - rhs.z};
 }
 
+parser::Vec3f RayTracer::Negate(const parser::Vec3f &rhs) {
+    return {
+            -rhs.x,
+            -rhs.y,
+            -rhs.z};
+}
+
+
 float RayTracer::Length(parser::Vec3f vector) {
     return sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
 }
 
-parser::Vec3f RayTracer::Normalize(parser::Vec3f vector){
+parser::Vec3f RayTracer::Normalize(parser::Vec3f vector) {
     parser::Vec3f normalized_vector;
     float vector_length = Length(vector);
     normalized_vector.x = vector.x / vector_length;
@@ -52,12 +60,13 @@ parser::Vec3f RayTracer::Normalize(parser::Vec3f vector){
     return normalized_vector;
 }
 
-parser::Ray RayTracer::GenerateEyeRay(int x, int y, parser::Camera cam){
+parser::Ray RayTracer::GenerateEyeRay(int x, int y, parser::Camera cam) {
     parser::Ray ray;
     parser::Vec3f su, sv, s;
     ray.origin = cam.position;
     float pixel_width = cam.near_plane.y - cam.near_plane.x / (float) cam.image_width;
     // TODO: continue with su sv.
+    return ray;
 }
 
 unsigned char *RayTracer::InitializeImage(int width, int height) {
