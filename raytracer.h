@@ -12,8 +12,8 @@ public:
     float Dot(const parser::Vec3f& lhs, const parser::Vec3f& rhs);
     friend parser::Vec3f operator+(const parser::Vec3f &lhs, const parser::Vec3f& rhs);
     friend parser::Vec3f operator-(const parser::Vec3f &lhs, const parser::Vec3f& rhs);
-
-    void RenderScene();
+    unsigned char* InitializeImage(int width, int height);
+    unsigned char * RenderScene(parser::Scene scene, int camera_no);
 };
 
 #endif // __raytracer_h__

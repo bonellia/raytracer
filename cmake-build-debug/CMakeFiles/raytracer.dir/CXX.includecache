@@ -6,11 +6,33 @@
 
 #IncludeRegexTransform: 
 
-/mnt/c/Users/Kril/CLionProjects/raytracer/ppm.cpp
-ppm.h
-/mnt/c/Users/Kril/CLionProjects/raytracer/ppm.h
-stdexcept
+/mnt/c/Users/Kril/CLionProjects/raytracer/parser.h
+string
+-
+vector
 -
 
 /mnt/c/Users/Kril/CLionProjects/raytracer/ppm.h
+
+/mnt/c/Users/Kril/CLionProjects/raytracer/raytracer.cpp
+iostream
+-
+parser.h
+/mnt/c/Users/Kril/CLionProjects/raytracer/parser.h
+ppm.h
+/mnt/c/Users/Kril/CLionProjects/raytracer/ppm.h
+raytracer.h
+/mnt/c/Users/Kril/CLionProjects/raytracer/raytracer.h
+util.h
+/mnt/c/Users/Kril/CLionProjects/raytracer/util.h
+
+/mnt/c/Users/Kril/CLionProjects/raytracer/raytracer.h
+parser.h
+/mnt/c/Users/Kril/CLionProjects/raytracer/parser.h
+cmath
+-
+
+/mnt/c/Users/Kril/CLionProjects/raytracer/util.h
+parser.h
+/mnt/c/Users/Kril/CLionProjects/raytracer/parser.h
 

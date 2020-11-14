@@ -9,6 +9,7 @@ CMakeFiles/raytracer.dir/ppm.cpp.o: ../ppm.cpp
 CMakeFiles/raytracer.dir/ppm.cpp.o: ../ppm.h
 
 CMakeFiles/raytracer.dir/raytracer.cpp.o: ../parser.h
+CMakeFiles/raytracer.dir/raytracer.cpp.o: ../ppm.h
 CMakeFiles/raytracer.dir/raytracer.cpp.o: ../raytracer.cpp
 CMakeFiles/raytracer.dir/raytracer.cpp.o: ../raytracer.h
 CMakeFiles/raytracer.dir/raytracer.cpp.o: ../util.h
