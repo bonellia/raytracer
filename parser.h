@@ -4,44 +4,38 @@
 #include <string>
 #include <vector>
 
-namespace parser
-{
+namespace parser {
     //Notice that all the structures are as simple as possible
     //so that you are not enforced to adopt any style or design.
-    struct Vec3f
-    {
+    struct Vec3f {
         float x, y, z;
     };
 
-    struct Vec3i
-    {
+    struct Vec3i {
         int x, y, z;
     };
 
-    struct Vec4f
-    {
+    struct Vec4f {
         float x, y, z, w;
     };
 
-    struct Camera
-    {
+    struct Camera {
         Vec3f position;
         Vec3f gaze;
         Vec3f up;
+        // Left, right, bottom, top = x, y, z, w
         Vec4f near_plane;
         float near_distance;
         int image_width, image_height;
         std::string image_name;
     };
 
-    struct PointLight
-    {
+    struct PointLight {
         Vec3f position;
         Vec3f intensity;
     };
 
-    struct Material
-    {
+    struct Material {
         Vec3f ambient;
         Vec3f diffuse;
         Vec3f specular;
@@ -49,34 +43,34 @@ namespace parser
         float phong_exponent;
     };
 
-    struct Face
-    {
+    struct Face {
         int v0_id;
         int v1_id;
         int v2_id;
     };
 
-    struct Mesh
-    {
+    struct Mesh {
         int material_id;
         std::vector<Face> faces;
     };
 
-    struct Triangle
-    {
+    struct Triangle {
         int material_id;
         Face indices;
     };
 
-    struct Sphere
-    {
+    struct Sphere {
         int material_id;
         int center_vertex_id;
         float radius;
     };
 
-    struct Scene
-    {
+    struct Ray {
+        Vec3f origin;
+        Vec3f direction;
+    };
+
+    struct Scene {
         //Data
         Vec3i background_color;
         float shadow_ray_epsilon;
@@ -91,7 +85,7 @@ namespace parser
         std::vector<Sphere> spheres;
 
         //Functions
-        void loadFromXml(const std::string& filepath);
+        void loadFromXml(const std::string &filepath);
     };
 }
 

@@ -6,40 +6,65 @@
 
 typedef unsigned char RGB[3];
 
-parser::Vec3f Cross(const parser::Vec3f &lhs, const parser::Vec3f &rhs)
-{
+parser::Vec3f Cross(const parser::Vec3f &lhs, const parser::Vec3f &rhs) {
     return {
             lhs.y * rhs.z - rhs.y * lhs.z,
             rhs.x * lhs.z - lhs.x * rhs.z,
             lhs.x * rhs.y - rhs.x * lhs.y};
 }
-float Dot(const parser::Vec3f &lhs, const parser::Vec3f &rhs)
-{
+
+float Dot(const parser::Vec3f &lhs, const parser::Vec3f &rhs) {
     return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
 }
-parser::Vec3f operator+(const parser::Vec3f &lhs, const parser::Vec3f &rhs)
-{
+
+parser::Vec3f operator*(const float &lhs, const parser::Vec3f &rhs){
+    parser::Vec3f vector;
+    vector.x = lhs * rhs.x;
+    vector.y = lhs * rhs.y;
+    vector.z = lhs * rhs.z;
+    return vector;
+}
+
+parser::Vec3f operator+(const parser::Vec3f &lhs, const parser::Vec3f &rhs) {
     return {
             lhs.x + rhs.x,
             lhs.y + rhs.y,
             lhs.z + rhs.z};
 }
-parser::Vec3f operator-(const parser::Vec3f &lhs, const parser::Vec3f &rhs)
-{
+
+parser::Vec3f operator-(const parser::Vec3f &lhs, const parser::Vec3f &rhs) {
     return {
             lhs.x - rhs.x,
             lhs.y - rhs.y,
             lhs.z - rhs.z};
 }
 
-unsigned char* RayTracer::InitializeImage(int width, int height)
-{
+float RayTracer::Length(parser::Vec3f vector) {
+    return sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
+}
+
+parser::Vec3f RayTracer::Normalize(parser::Vec3f vector){
+    parser::Vec3f normalized_vector;
+    float vector_length = Length(vector);
+    normalized_vector.x = vector.x / vector_length;
+    normalized_vector.y = vector.y / vector_length;
+    normalized_vector.z = vector.z / vector_length;
+    return normalized_vector;
+}
+
+parser::Ray RayTracer::GenerateEyeRay(int x, int y, parser::Camera cam){
+    parser::Ray ray;
+    parser::Vec3f su, sv, s;
+    ray.origin = cam.position;
+    float pixel_width = cam.near_plane.y - cam.near_plane.x / (float) cam.image_width;
+    // TODO: continue with su sv.
+}
+
+unsigned char *RayTracer::InitializeImage(int width, int height) {
     unsigned char *image = new unsigned char[width * height * 3];
     int i = 0;
-    for (int y = 0; y < height; ++y)
-    {
-        for (int x = 0; x < width; ++x)
-        {
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
             image[i++] = 255;
             image[i++] = 0;
             image[i++] = 0;
@@ -48,17 +73,16 @@ unsigned char* RayTracer::InitializeImage(int width, int height)
     return image;
 }
 
-unsigned char * RayTracer::RenderScene(parser::Scene scene, int camera_no)
-{
+unsigned char *RayTracer::RenderScene(parser::Scene scene, int camera_no) {
     int width = scene.cameras.at(camera_no).image_width;
     int height = scene.cameras.at(camera_no).image_height;
-    unsigned char* raw_image = InitializeImage(width, height);
     // Step 1: Initialize the image.
+    unsigned char *raw_image = InitializeImage(width, height);
+    // Step 2: Generate rays.
     return raw_image;
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     // Sample usage for reading an XML scene file
     parser::Scene scene;
     util::Util util;
