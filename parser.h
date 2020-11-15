@@ -65,8 +65,6 @@ namespace parser {
         float radius;
     };
 
-
-
     struct Scene {
         //Data
         Vec3i background_color;

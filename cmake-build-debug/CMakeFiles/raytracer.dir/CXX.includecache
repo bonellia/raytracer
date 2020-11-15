@@ -6,6 +6,10 @@
 
 #IncludeRegexTransform: 
 
+/mnt/c/Users/Kril/CLionProjects/raytracer/definitions.h
+parser.h
+/mnt/c/Users/Kril/CLionProjects/raytracer/parser.h
+
 /mnt/c/Users/Kril/CLionProjects/raytracer/parser.h
 string
 -
@@ -29,6 +33,8 @@ util.h
 /mnt/c/Users/Kril/CLionProjects/raytracer/raytracer.h
 parser.h
 /mnt/c/Users/Kril/CLionProjects/raytracer/parser.h
+definitions.h
+/mnt/c/Users/Kril/CLionProjects/raytracer/definitions.h
 cmath
 -
 

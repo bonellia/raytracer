@@ -47,7 +47,7 @@ Vec3f RayTracer::Negate(const Vec3f &rhs) {
 }
 
 
-float RayTracer::Length(parser::Vec3f vector) {
+float RayTracer::Length(Vec3f vector) {
     return sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
 }
 
@@ -58,6 +58,14 @@ Vec3f RayTracer::Normalize(Vec3f vector) {
     normalized_vector.y = vector.y / vector_length;
     normalized_vector.z = vector.z / vector_length;
     return normalized_vector;
+}
+
+float RayTracer::Determinant(Vec3f a, Vec3f b, Vec3f c) {
+    float result = 0;
+    result += a.x * (a.y * b.z - b.y * a.z);
+    result += a.y * (b.x * a.z - a.x * b.z);
+    result += a.z * (a.x * b.y - a.y * b.x);
+    return result;
 }
 
 Ray RayTracer::GenerateEyeRay(int x, int y, parser::Camera cam) {
@@ -88,7 +96,7 @@ unsigned char *RayTracer::InitializeImage(int width, int height) {
     return image;
 }
 
-Touch RayTracer::IntersectSphere(Ray ray, parser::Sphere sphere) {
+Touch RayTracer::IntersectSphere(Ray ray, Sphere sphere) {
     Touch touch;
     float A, B, C;
     float delta;
@@ -131,13 +139,77 @@ Touch RayTracer::IntersectSphere(Ray ray, parser::Sphere sphere) {
     return MISS;
 }
 
-unsigned char *RayTracer::RenderScene(parser::Scene scene, int camera_no) {
-    int width = scene.cameras.at(camera_no).image_width;
-    int height = scene.cameras.at(camera_no).image_height;
-    // Step 1: Initialize the image.
-    unsigned char *raw_image = InitializeImage(width, height);
-    // Step 2: Generate rays.
-    return raw_image;
+Touch RayTracer::IntersectTriangle(Ray ray, Vec3f &a, Vec3f &b, Vec3f &c, int material_id, int object_no) {
+    Touch touch;
+    Vec3f a_b = Subtract(a, b);
+    Vec3f a_c = Subtract(a, c);
+    Vec3f a_o = Subtract(b, ray.origin);
+
+    float det_A = Determinant(a_b, a_c, ray.direction);
+    if (det_A == 0.0) {
+        return MISS;
+    }
+    float t = (Determinant(a_b, a_c, a_o)) / det_A;
+    if (det_A <= 0.0) {
+        return MISS;
+    }
+    float gamma = Determinant(a_b, a_o, ray.direction) / det_A;
+    if (gamma < 0 || gamma > 1) {
+        return MISS;
+    }
+    float beta = Determinant(a_o, a_c, ray.direction) / det_A;
+    if (beta < 0 || beta > (1 - gamma)) {
+        return MISS;
+    }
+    touch.material_id = material_id;
+    touch.touched_object_no = object_no;
+    touch.material_id = material_id;
+    touch.t = t;
+    touch.position = Add(ray.origin, Scale(t, ray.direction));
+    touch.normal = Normalize(Cross(Subtract(b, a), Subtract(c, a)));
+    return touch;
+}
+
+Touch RayTracer::MeshIntersection(Ray ray, int mesh_id, int material_id, int object_no) {
+    Touch final_touch = MISS;
+    int face_count = scene.meshes.at(mesh_id).faces.size();
+    for (int face_no = 0; face_no < face_count; face_no++) {
+        Touch triangle_touch;
+        Vec3f v0 = scene.vertex_data[scene.meshes.at(mesh_id).faces[face_no].v0_id - 1];
+        Vec3f v1 = scene.vertex_data[scene.meshes.at(mesh_id).faces[face_no].v1_id - 1];
+        Vec3f v2 = scene.vertex_data[scene.meshes.at(mesh_id).faces[face_no].v2_id - 1];
+        triangle_touch = IntersectTriangle(ray, v0, v1, v2, scene.meshes.at(mesh_id).material_id, object_no);
+        if (triangle_touch.t >= 0) {
+            if (final_touch.t == -1) {
+                final_touch = triangle_touch;
+            } else {
+                if (final_touch.t > triangle_touch.t) {
+                    final_touch = triangle_touch;
+                }
+            }
+        }
+    }
+    return final_touch;
+}
+
+Vec3f RayTracer::CalculatePixelColor(Ray ray) {
+    return {12, 144, 196};
+}
+
+unsigned char *RayTracer::RenderScene(Camera camera, int width, int height) {
+
+    unsigned char *image = InitializeImage(width, height);
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) {
+            Vec3f pixel_color = {0, 0, 0};
+            Ray ray = GenerateEyeRay(i, j, camera);
+            pixel_color = CalculatePixelColor(ray);
+            image[3 * i * width + j] = pixel_color.x;
+            image[3 * i * width + j + 1] = pixel_color.y;
+            image[3 * i * width + j + 2] = pixel_color.z;
+        }
+    }
+    return image;
 }
 
 int main(int argc, char *argv[]) {
@@ -148,12 +220,12 @@ int main(int argc, char *argv[]) {
     scene.loadFromXml(argv[1]);
     ray_tracer.scene = scene;
     util.PrintSceneDetails(scene);
+    // TODO: Add multithreading.
     for (auto camera: scene.cameras) {
         auto width = camera.image_width;
         auto height = camera.image_height;
-        unsigned char *image = ray_tracer.RenderScene(scene, 0);
+        unsigned char *image = ray_tracer.RenderScene(camera, width, height);
         write_ppm(camera.image_name.c_str(), image, width, height);
-        // TODO: Add multithreading.
     }
     // The code below creates a test pattern and writes
     // it to a PPM file to demonstrate the usage of the
