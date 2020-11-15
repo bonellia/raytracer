@@ -25,6 +25,21 @@ Vec3f RayTracer::Scale(const float &lhs, const Vec3f &rhs) {
     return vector;
 }
 
+Vec3f RayTracer::VectorScale(const Vec3f &lhs, const Vec3f &rhs) {
+    Vec3f vector;
+    vector.x = lhs.x * rhs.x;
+    vector.y = lhs.x * rhs.y;
+    vector.z = lhs.x * rhs.z;
+    return vector;
+}
+
+Vec3f RayTracer::Circumsize(const Vec3f &lhs, const float &rhs) {
+    return {
+            lhs.x / rhs,
+            lhs.y / rhs,
+            lhs.z / rhs};
+}
+
 Vec3f RayTracer::Add(const Vec3f &lhs, const Vec3f &rhs) {
     return {
             lhs.x + rhs.x,
@@ -39,11 +54,11 @@ Vec3f RayTracer::Subtract(const Vec3f &lhs, const Vec3f &rhs) {
             lhs.z - rhs.z};
 }
 
-Vec3f RayTracer::Negate(const Vec3f &rhs) {
+Vec3f RayTracer::Negate(const Vec3f &vector) {
     return {
-            -rhs.x,
-            -rhs.y,
-            -rhs.z};
+            -vector.x,
+            -vector.y,
+            -vector.z};
 }
 
 
@@ -96,7 +111,7 @@ unsigned char *RayTracer::InitializeImage(int width, int height) {
     return image;
 }
 
-Touch RayTracer::IntersectSphere(Ray ray, Sphere sphere) {
+Touch RayTracer::SphereIntersectionTest(Ray ray, Sphere sphere) {
     Touch touch;
     float A, B, C;
     float delta;
@@ -104,7 +119,7 @@ Touch RayTracer::IntersectSphere(Ray ray, Sphere sphere) {
     float sphere_radius;
     float t, t1, t2;
 
-    sphere_center = this->scene.vertex_data.at(sphere.center_vertex_id);
+    sphere_center = this->scene.vertex_data.at(sphere.center_vertex_id-1);
     sphere_radius = sphere.radius;
 
     C += powf((ray.origin.x - sphere_center.x), 2);
@@ -126,20 +141,18 @@ Touch RayTracer::IntersectSphere(Ray ray, Sphere sphere) {
         // Pick closer t value.
         t = std::min(t1, t2);
         // But this t value needs to be further than near plane.
-        if (t >= 1.0) {
-            // Successful hit, set touch parameters.
-            touch.t = t;
-            touch.position = Add(ray.origin, Scale(t, ray.direction));
-            touch.normal = Normalize(Subtract(touch.position, sphere_center));
-            touch.material_id = sphere.material_id;
-            return touch;
-        }
+        // Successful hit, set touch parameters.
+        touch.t = t;
+        touch.position = Add(ray.origin, Scale(t, ray.direction));
+        touch.normal = Normalize(Subtract(touch.position, sphere_center));
+        touch.material_id = sphere.material_id;
+        return touch;
     }
     // If we reach here, bad luck:
     return MISS;
 }
 
-Touch RayTracer::IntersectTriangle(Ray ray, Vec3f &a, Vec3f &b, Vec3f &c, int material_id, int object_no) {
+Touch RayTracer::TriangleIntersectionTest(Ray ray, Vec3f &a, Vec3f &b, Vec3f &c, int material_id) {
     Touch touch;
     Vec3f a_b = Subtract(a, b);
     Vec3f a_c = Subtract(a, c);
@@ -162,7 +175,6 @@ Touch RayTracer::IntersectTriangle(Ray ray, Vec3f &a, Vec3f &b, Vec3f &c, int ma
         return MISS;
     }
     touch.material_id = material_id;
-    touch.touched_object_no = object_no;
     touch.material_id = material_id;
     touch.t = t;
     touch.position = Add(ray.origin, Scale(t, ray.direction));
@@ -170,18 +182,18 @@ Touch RayTracer::IntersectTriangle(Ray ray, Vec3f &a, Vec3f &b, Vec3f &c, int ma
     return touch;
 }
 
-Touch RayTracer::MeshIntersection(Ray ray, int mesh_id, int material_id, int object_no) {
+Touch RayTracer::MeshIntersectionTest(Ray ray, Mesh mesh) {
     Touch final_touch = MISS;
-    int face_count = scene.meshes.at(mesh_id).faces.size();
+    int face_count = mesh.faces.size();
     for (int face_no = 0; face_no < face_count; face_no++) {
         Touch triangle_touch;
-        Vec3f v0 = scene.vertex_data[scene.meshes.at(mesh_id).faces[face_no].v0_id - 1];
-        Vec3f v1 = scene.vertex_data[scene.meshes.at(mesh_id).faces[face_no].v1_id - 1];
-        Vec3f v2 = scene.vertex_data[scene.meshes.at(mesh_id).faces[face_no].v2_id - 1];
-        triangle_touch = IntersectTriangle(ray, v0, v1, v2, scene.meshes.at(mesh_id).material_id, object_no);
+        Vec3f v0 = scene.vertex_data[mesh.faces[face_no].v0_id - 1];
+        Vec3f v1 = scene.vertex_data[mesh.faces[face_no].v1_id - 1];
+        Vec3f v2 = scene.vertex_data[mesh.faces[face_no].v2_id - 1];
+        triangle_touch = TriangleIntersectionTest(ray, v0, v1, v2, mesh.material_id);
         if (triangle_touch.t >= 0) {
             if (final_touch.t == -1) {
-                final_touch = triangle_touch;
+                continue;
             } else {
                 if (final_touch.t > triangle_touch.t) {
                     final_touch = triangle_touch;
@@ -192,21 +204,127 @@ Touch RayTracer::MeshIntersection(Ray ray, int mesh_id, int material_id, int obj
     return final_touch;
 }
 
-Vec3f RayTracer::CalculatePixelColor(Ray ray) {
-    return {12, 144, 196};
+Touch RayTracer::FindClosestTouch(Ray ray) {
+    int sphere_count = scene.spheres.size();
+    int triangle_count = scene.triangles.size();
+    int mesh_count = scene.meshes.size();
+    Touch closest_touch = MISS;
+
+    // Check spheres.
+    for (auto sphere : scene.spheres) {
+        Touch current_sphere_touch = SphereIntersectionTest(ray, sphere);
+        if (closest_touch.t == -1) {
+            continue;
+        } else {
+            if (closest_touch.t > current_sphere_touch.t) {
+                closest_touch = current_sphere_touch;
+            }
+        }
+    }
+    // Check meshes.
+    for (auto mesh : scene.meshes) {
+        Touch current_mesh_touch = MeshIntersectionTest(ray, mesh);
+        if (closest_touch.t == -1) {
+            continue;
+        } else {
+            if (closest_touch.t > current_mesh_touch.t) {
+                closest_touch = current_mesh_touch;
+            }
+        }
+    }
+    // Check triangles.
+    for (auto triangle : scene.triangles) {
+        Vec3f v0 = scene.vertex_data[triangle.indices.v0_id - 1];
+        Vec3f v1 = scene.vertex_data[triangle.indices.v1_id - 1];
+        Vec3f v2 = scene.vertex_data[triangle.indices.v2_id - 1];
+        Touch current_triangle_touch = TriangleIntersectionTest(ray, v0, v1, v2, triangle.material_id);
+        if (closest_touch.t == -1) {
+            continue;
+        } else {
+            if (closest_touch.t > current_triangle_touch.t) {
+                closest_touch = current_triangle_touch;
+            }
+        }
+    }
+    return closest_touch;
+}
+
+Vec3f RayTracer::CalculatePixelColor(Ray ray, int depth) {
+    Vec3f pixel_color = {0, 0, 0};
+    float first_contact_t = std::numeric_limits<float>::max();
+    Touch closest_touch = MISS;
+    for (auto sphere : scene.spheres) {
+        Touch sphere_result = SphereIntersectionTest(ray, sphere);
+        if (sphere_result.t > 0 && sphere_result.t < first_contact_t) {
+            first_contact_t = sphere_result.t;
+            closest_touch = sphere_result;
+        }
+    }
+    if (closest_touch.t > 0) {
+        Material touched_mat = scene.materials[closest_touch.material_id - 1];
+
+        // Handle reflections early.
+        if (Length(touched_mat.mirror) > 0) {
+            Vec3f reflection_vector = Subtract(ray.direction,
+                                               Scale(
+                                                       2.0f * (Dot(closest_touch.normal, ray.direction)),
+                                                       closest_touch.normal));
+            Ray reflection_ray;
+            reflection_ray.origin = Add(closest_touch.position, Scale(scene.shadow_ray_epsilon, reflection_vector));
+            reflection_ray.direction = Normalize(reflection_vector);
+            Vec3f mirror_component = VectorScale(touched_mat.mirror, CalculatePixelColor(reflection_ray, depth + 1));
+
+            pixel_color = Add(pixel_color, mirror_component);
+        }
+        // Ambient shading after.
+        Vec3f ambient_component = VectorScale(scene.ambient_light, touched_mat.ambient);
+        pixel_color = Add(pixel_color, ambient_component);
+        // Then lighting.
+        for (auto light : scene.point_lights) {
+            Vec3f light_vector = Subtract(light.position, closest_touch.position);
+            float light_distance = Length(light_vector);
+            Vec3f light_component = Circumsize(light.intensity,
+                                               powf(Length(Subtract(closest_touch.position, light.position)), 2));
+            Ray light_ray;
+            light_ray.origin = Add(closest_touch.position, Scale(scene.shadow_ray_epsilon, Normalize(light_vector)));
+            light_ray.direction = Normalize(light_vector);
+
+            // Shadows.
+            bool skip_rest = false;
+            Touch shadow_touch = FindClosestTouch(light_ray);
+            if (shadow_touch.t > 0 && shadow_touch.t <= light_distance) {
+                continue;
+            }
+
+            // Diffuse.
+            Vec3f diffuse_component = Scale(std::max(0.0f, Dot(closest_touch.normal, Normalize(light_vector))),
+                                                           VectorScale(touched_mat.diffuse, light_component));
+            pixel_color = Add(pixel_color, diffuse_component);
+
+            // Specular (Blinn-Phong).
+            Vec3f h = Add(Negate(Normalize(ray.direction)), Normalize(light_vector));
+            h = Circumsize(h, Length(h));
+            Vec3f specular_component = Add(pixel_color, specular_component);
+        }
+        return pixel_color;
+    }
+    pixel_color.x = scene.background_color.x;
+    pixel_color.y = scene.background_color.y;
+    pixel_color.z = scene.background_color.z;
+    return pixel_color;
 }
 
 unsigned char *RayTracer::RenderScene(Camera camera, int width, int height) {
 
     unsigned char *image = InitializeImage(width, height);
-    for (int i = 0; i < width; i++) {
-        for (int j = 0; j < height; j++) {
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
             Vec3f pixel_color = {0, 0, 0};
             Ray ray = GenerateEyeRay(i, j, camera);
-            pixel_color = CalculatePixelColor(ray);
-            image[3 * i * width + j] = pixel_color.x;
-            image[3 * i * width + j + 1] = pixel_color.y;
-            image[3 * i * width + j + 2] = pixel_color.z;
+            pixel_color = CalculatePixelColor(ray, 0);
+            image[3 * (i * width + j)] = pixel_color.x;
+            image[3 * (i * width + j) + 1] = pixel_color.y;
+            image[3 * (i * width + j) + 2] = pixel_color.z;
         }
     }
     return image;
