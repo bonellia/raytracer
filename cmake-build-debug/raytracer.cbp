@@ -82,6 +82,9 @@
 				</MakeCommands>
 			</Target>
 		</Build>
+		<Unit filename="/mnt/c/Users/Kril/CLionProjects/raytracer/definitions.h">
+			<Option target="raytracer"/>
+		</Unit>
 		<Unit filename="/mnt/c/Users/Kril/CLionProjects/raytracer/parser.cpp">
 			<Option target="raytracer"/>
 		</Unit>
