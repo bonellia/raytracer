@@ -56,10 +56,11 @@ Vec3f RayTracer::Subtract(const Vec3f &lhs, const Vec3f &rhs) {
 }
 
 Vec3f RayTracer::Negate(const Vec3f &vector) {
-    vector.x = -vector.x;
-    vector.y = -vector.y;
-    vector.z = -vector.z;
-    return vector;
+    Vec3f result;
+    result.x = -vector.x;
+    result.y = -vector.y;
+    result.z = -vector.z;
+    return result;
 }
 
 
