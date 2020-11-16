@@ -227,7 +227,22 @@ Vec3f RayTracer::CalculatePixelColor(const Ray &ray, const TouchAttempt &touch_a
     Vec3f pixel_color = {0, 0, 0};
     if (touch_attempt.contact != NAH) {
         Material touched_mat = scene.materials[touch_attempt.material_id - 1];
-        // Ambient shading first.
+        // Handle reflections first.
+        if (Length(touched_mat.mirror) > 0) {
+            Vec3f reflection_vector = Subtract(ray.direction,
+                                               Scale(
+                                                       2.0f * (Dot(touch_attempt.normal, ray.direction)),
+                                                       touch_attempt.normal));
+            Ray reflection_ray;
+            reflection_ray.origin = Add(touch_attempt.position, Scale(scene.shadow_ray_epsilon, reflection_vector));
+            reflection_ray.direction = Normalize(reflection_vector);
+            Vec3f mirror_component = VectorScale(touched_mat.mirror,
+                                                 CalculatePixelColor(reflection_ray, touch_attempt, cam, depth + 1));
+
+            pixel_color = Add(pixel_color, mirror_component);
+        }
+
+        // Ambient shading next.
         Vec3f ambient_component = VectorScale(scene.ambient_light, touched_mat.ambient);
         pixel_color = Add(pixel_color, ambient_component);
         // Then lighting.
@@ -259,20 +274,6 @@ Vec3f RayTracer::CalculatePixelColor(const Ray &ray, const TouchAttempt &touch_a
                     VectorScale(touched_mat.specular, irradiance));
             pixel_color = Add(pixel_color, specular_component);
         }
-        // Handle reflections last.
-        if (Length(touched_mat.mirror) > 0) {
-            Vec3f reflection_vector = Subtract(ray.direction,
-                                               Scale(
-                                                       2.0f * (Dot(touch_attempt.normal, ray.direction)),
-                                                       touch_attempt.normal));
-            Ray reflection_ray;
-            reflection_ray.origin = Add(touch_attempt.position, Scale(scene.shadow_ray_epsilon, reflection_vector));
-            reflection_ray.direction = Normalize(reflection_vector);
-            Vec3f mirror_component = VectorScale(touched_mat.mirror,
-                                                 CalculatePixelColor(reflection_ray, touch_attempt, cam, depth + 1));
-
-            pixel_color = Add(pixel_color, mirror_component);
-        }
 
         pixel_color.x = pixel_color.x > 255 ? 255 : pixel_color.x;
         pixel_color.y = pixel_color.y > 255 ? 255 : pixel_color.y;
@@ -301,14 +302,11 @@ unsigned char *RayTracer::RenderScene(const Camera &cam, const int width, const 
             TouchAttempt touch_attempt = MISS;
             touch_attempt = FindClosestContact(ray);
             pixel_color = CalculatePixelColor(ray, touch_attempt, cam, 0);
-            if (pixel_color.x != 0) {
-                std::cout << "hurray!" << std::endl;
-            }
             // TODO: Fix the loop.
-            RGB final_color = {(unsigned char) std::min(pixel_color.x, 255.0f),
-                               (unsigned char) std::min(pixel_color.y, 255.0f),
-                               (unsigned char) std::min(pixel_color.z, 255.0f)};
-            SetImagePixelRGB(image, row, column, width, final_color);
+            if (pixel_color.x != 0 || pixel_color.y != 0 ||pixel_color.z != 0) {
+                std::cout << pixel_color.x << ' ' << pixel_color.y << ' ' << pixel_color.z << ' ' << std::endl;
+            }
+            // TODO: Add color to char*.
         }
     }
     return image;
