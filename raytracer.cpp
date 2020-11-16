@@ -89,13 +89,13 @@ Ray RayTracer::GenerateEyeRay(int pixel_row, int pixel_column, const parser::Cam
     // We find the position of the direction vector by traversing near plane.
     Ray ray;
     Vec3f plane_center = Add(cam.position, Scale(cam.near_distance, cam.gaze));
-    Vec3f cam_right_vector = Cross(cam.gaze, cam.up);
+    Vec3f cam_right_vector = Normalize(Cross(cam.gaze, cam.up));
     Vec3f plane_top_left = Add(plane_center,
                                Add(Scale(cam.near_plane.x, cam_right_vector), Scale(cam.near_plane.w, cam.up)));
     float u = (float) (pixel_column + 0.5) * (cam.near_plane.y - cam.near_plane.x) / (float) cam.image_width;
     float v = (float) (pixel_row + 0.5) * (cam.near_plane.w - cam.near_plane.z) / (float) cam.image_height;
 
-    Vec3f pixel_position = Add(plane_top_left, Add(Scale(u, cam_right_vector), Scale(v, cam.up)));
+    Vec3f pixel_position = Add(plane_top_left, Subtract(Scale(u, cam_right_vector), Scale(v, cam.up)));
     ray.origin = cam.position;
     ray.direction = Normalize(Subtract(pixel_position, ray.origin));
     return ray;
@@ -116,27 +116,15 @@ unsigned char *RayTracer::InitializeImage(int width, int height) {
 
 Touch RayTracer::SphereIntersectionTest(const Ray &ray, const Sphere &sphere) {
     Touch touch;
-    float A, B, C;
-    float delta;
-    Vec3f sphere_center;
-    float sphere_radius;
+    float delta = 0;
+    Vec3f sphere_center = this->scene.vertex_data.at(sphere.center_vertex_id - 1);
+    float sphere_radius = sphere_radius = sphere.radius;
+    Vec3f origin_minus_center = Subtract(ray.origin, sphere_center);
     float t, t1, t2;
-
-    sphere_center = this->scene.vertex_data.at(sphere.center_vertex_id - 1);
-    sphere_radius = sphere.radius;
-
-    C += powf((ray.origin.x - sphere_center.x), 2);
-    C += powf((ray.origin.y - sphere_center.y), 2);
-    C += powf((ray.origin.z - sphere_center.z), 2);
-    C -= powf(sphere_radius, 2);
-
-    B += 2 * ray.direction.x * (ray.origin.x - sphere_center.x);
-    B += 2 * ray.direction.y * (ray.origin.y - sphere_center.y);
-    B += 2 * ray.direction.z * (ray.origin.z - sphere_center.z);
-
-    A = powf(ray.direction.x, 2) + powf(ray.direction.y, 2) + powf(ray.direction.z, 2);
-
-    delta = powf(B, 2) - 4 * A * C;
+    float A = Dot(ray.direction, ray.direction);
+    float B = 2 * Dot(ray.direction, origin_minus_center);
+    float C = Dot(origin_minus_center, origin_minus_center) - sphere_radius * sphere_radius;
+    delta = B * B - 4 * A * C;
 
     if (delta > 0) {
         t1 = (-B + sqrtf(delta)) / (2 * A);
@@ -316,7 +304,7 @@ unsigned char *RayTracer::RenderScene(const Camera &camera, const int width, con
     unsigned char *image = InitializeImage(width, height);
     for (int row = 0; row < height; row++) {
         for (int column = 0; column < width; column++) {
-            Vec3f pixel_color = {255, 255, 255};
+            Vec3f pixel_color;
             Ray ray = GenerateEyeRay(row, column, camera);
             pixel_color = CalculatePixelColor(ray, 0);
             image[3 * (row * width + column)] = pixel_color.x;
