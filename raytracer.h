@@ -80,13 +80,32 @@ public:
     // Tests ray intersections for all objects within the scene and returns the closest touching point information.
     TouchAttempt FindClosestContact(const Ray &ray);
 
-    // Fills the initial image with red colors.
+    /*!
+     * Fills the initial image with red colors. Intended for all image.
+     * @param width Column count as pixels.
+     * @param height Row count as pixels.
+     * @return
+     */
     static unsigned char *InitializeImage(const int width, const int height);
 
-    // Calculates the color value for a pixel considering all scene parameters.
+    /*!
+     * Calculates the color value for a pixel considering all scene parameters.
+     * @param ray Ray that intersects the current pixel value on near plane.
+     * @param touch_attempt
+     * @param cam Camera that used for color calculation. Needed for external rays.
+     * @param depth Maximum number of recursive calls.
+     * @return The vector with color data.
+     */
     Vec3f CalculatePixelColor(const Ray &ray, const TouchAttempt &touch_attempt, const Camera &cam, int depth);
 
-    // Renders the scene for the given camera.
+
+    /*!
+     * Renders the scene for the given camera.
+     * @param cam Camera that used for rendering
+     * @param width Column count to render
+     * @param height Row count to render
+     * @return One dimensional array that contains the color values (e.g., 255255255...)
+     */
     unsigned char *RenderScene(const Camera &cam, const int width, const int height);
 };
 
