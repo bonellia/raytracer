@@ -78,10 +78,7 @@ Vec3f RayTracer::Normalize(const Vec3f &vector) {
 }
 
 float RayTracer::Determinant(const Vec3f &a, const Vec3f &b, const Vec3f &c) {
-    float result = 0;
-    result += a.x * (a.y * b.z - b.y * a.z);
-    result += a.y * (b.x * a.z - a.x * b.z);
-    result += a.z * (a.x * b.y - a.y * b.x);
+    float result = a.x * (b.y * c.z - c.y * b.z) + a.y * (c.x * b.z - b.x * c.z) + a.z * (b.x * c.y - b.y * c.x);
     return result;
 }
 
@@ -116,22 +113,20 @@ unsigned char *RayTracer::InitializeImage(int width, int height) {
 
 TouchAttempt RayTracer::SphereIntersectionTest(const Ray &ray, const Sphere &sphere) {
     TouchAttempt touch_attempt;
-    float delta = 0;
     Vec3f sphere_center = this->scene.vertex_data.at(sphere.center_vertex_id - 1);
     const float sphere_radius = sphere.radius;
     const Vec3f origin_minus_center = Subtract(ray.origin, sphere_center);
-    float t;
     const float A = Dot(ray.direction, ray.direction);
     const float B = 2 * Dot(ray.direction, origin_minus_center);
     const float C = Dot(origin_minus_center, origin_minus_center) - sphere_radius * sphere_radius;
-    delta = B * B - 4 * A * C;
+    const float delta = B * B - 4 * A * C;
 
     if (delta > 0) {
         // Successful hit, set touch attempt parameters.
         // Pick closer t value.
         const float t1 = (-1 * B + std::sqrt(delta)) / 2 * A;
         const float t2 = (-1 * B - std::sqrt(delta)) / 2 * A;
-        t = std::min(t1, t2);
+        float t = std::min(t1, t2);
         touch_attempt.t = t;
         touch_attempt.position = Add(ray.origin, Scale(t, ray.direction));
         touch_attempt.normal = Circumsize(Subtract(touch_attempt.position, sphere_center), sphere_radius);
@@ -145,10 +140,10 @@ TouchAttempt RayTracer::SphereIntersectionTest(const Ray &ray, const Sphere &sph
 
 TouchAttempt RayTracer::TriangleIntersectionTest(const Ray ray, const Vec3f &a, const Vec3f &b, const Vec3f &c,
                                                  const int material_id) {
-    TouchAttempt touch;
+    TouchAttempt touch_attempt;
     Vec3f a_b = Subtract(a, b);
     Vec3f a_c = Subtract(a, c);
-    Vec3f a_o = Subtract(b, ray.origin);
+    Vec3f a_o = Subtract(a, ray.origin);
 
     float det_A = Determinant(a_b, a_c, ray.direction);
     if (det_A == 0.0) {
@@ -166,12 +161,12 @@ TouchAttempt RayTracer::TriangleIntersectionTest(const Ray ray, const Vec3f &a, 
     if (beta < 0 || beta > (1 - gamma)) {
         return MISS;
     }
-    touch.material_id = material_id;
-    touch.material_id = material_id;
-    touch.t = t;
-    touch.position = Add(ray.origin, Scale(t, ray.direction));
-    touch.normal = Normalize(Cross(Subtract(b, a), Subtract(c, a)));
-    return touch;
+    touch_attempt.material_id = material_id;
+    touch_attempt.material_id = material_id;
+    touch_attempt.t = t;
+    touch_attempt.position = Add(ray.origin, Scale(t, ray.direction));
+    touch_attempt.normal = Normalize(Cross(Subtract(b, a), Subtract(c, a)));
+    return touch_attempt;
 }
 
 TouchAttempt RayTracer::MeshIntersectionTest(const Ray &ray, const Mesh &mesh) {
@@ -207,21 +202,22 @@ TouchAttempt RayTracer::FindClosestContact(const Ray &ray) {
             continue;
         }
     }
-    // Check meshes.
-    for (const auto &mesh : scene.meshes) {
-        TouchAttempt current_attempt = MeshIntersectionTest(ray, mesh);
-        if (current_attempt.contact == BUM && current_attempt.t < closest_touch_attempt.t) {
-            closest_touch_attempt = current_attempt;
-        } else {
-            continue;
-        }
-    }
+
     // Check triangles.
     for (const auto &triangle : scene.triangles) {
         Vec3f v0 = scene.vertex_data[triangle.indices.v0_id - 1];
         Vec3f v1 = scene.vertex_data[triangle.indices.v1_id - 1];
         Vec3f v2 = scene.vertex_data[triangle.indices.v2_id - 1];
         TouchAttempt current_attempt = TriangleIntersectionTest(ray, v0, v1, v2, triangle.material_id);
+        if (current_attempt.contact == BUM && current_attempt.t < closest_touch_attempt.t) {
+            closest_touch_attempt = current_attempt;
+        } else {
+            continue;
+        }
+    }
+    // Check meshes.
+    for (const auto &mesh : scene.meshes) {
+        TouchAttempt current_attempt = MeshIntersectionTest(ray, mesh);
         if (current_attempt.contact == BUM && current_attempt.t < closest_touch_attempt.t) {
             closest_touch_attempt = current_attempt;
         } else {
