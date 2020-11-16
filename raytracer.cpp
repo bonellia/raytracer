@@ -104,7 +104,7 @@ unsigned char *RayTracer::InitializeImage(int width, int height) {
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             image[i++] = 0;
-            image[i++] = 255;
+            image[i++] = 0;
             image[i++] = 0;
         }
     }
@@ -150,7 +150,7 @@ TouchAttempt RayTracer::TriangleIntersectionTest(const Ray &ray, const Vec3f &a,
         return MISS;
     }
     float t = (Determinant(a_b, a_c, a_o)) / det_A;
-    if (det_A <= 0.0) {
+    if (t <= 0.0) {
         return MISS;
     }
     float gamma = Determinant(a_b, a_o, ray.direction) / det_A;
@@ -158,41 +158,40 @@ TouchAttempt RayTracer::TriangleIntersectionTest(const Ray &ray, const Vec3f &a,
         return MISS;
     }
     float beta = Determinant(a_o, a_c, ray.direction) / det_A;
-    if (beta < 0 || beta > (1 - gamma)) {
+    if (beta < 0 || beta > 1 || beta + gamma > 1) {
         return MISS;
     }
-    touch_attempt.material_id = material_id;
     touch_attempt.material_id = material_id;
     touch_attempt.t = t;
     touch_attempt.position = Add(ray.origin, Scale(t, ray.direction));
     touch_attempt.normal = Normalize(Cross(Subtract(b, a), Subtract(c, a)));
+    touch_attempt.contact = BOOB;
     return touch_attempt;
 }
 
 TouchAttempt RayTracer::MeshIntersectionTest(const Ray &ray, const Mesh &mesh) {
-    TouchAttempt touch_attempt = MISS;
+    TouchAttempt closest_touch_attempt = MISS;
+    closest_touch_attempt.t = std::numeric_limits<float>::max();
     int face_count = mesh.faces.size();
     for (int face_no = 0; face_no < face_count; face_no++) {
-        TouchAttempt triangle_touch;
+        TouchAttempt current_attempt;
         Vec3f v0 = scene.vertex_data[mesh.faces[face_no].v0_id - 1];
         Vec3f v1 = scene.vertex_data[mesh.faces[face_no].v1_id - 1];
         Vec3f v2 = scene.vertex_data[mesh.faces[face_no].v2_id - 1];
-        triangle_touch = TriangleIntersectionTest(ray, v0, v1, v2, mesh.material_id);
-        if (triangle_touch.t >= 0) {
-            if (touch_attempt.t == -1) {
-                continue;
-            } else {
-                if (touch_attempt.t > triangle_touch.t) {
-                    touch_attempt = triangle_touch;
-                }
-            }
+        current_attempt = TriangleIntersectionTest(ray, v0, v1, v2, mesh.material_id);
+        if (current_attempt.contact == BOOB && current_attempt.t < closest_touch_attempt.t) {
+            closest_touch_attempt = current_attempt;
+            closest_touch_attempt.contact = BODY;
+        } else {
+            continue;
         }
     }
-    return touch_attempt;
+    return closest_touch_attempt;
 }
 
 TouchAttempt RayTracer::FindClosestContact(const Ray &ray) {
     TouchAttempt closest_touch_attempt = MISS;
+    closest_touch_attempt.t = std::numeric_limits<float>::max();
     // Check spheres.
     for (const auto &sphere : scene.spheres) {
         TouchAttempt current_attempt = SphereIntersectionTest(ray, sphere);
@@ -209,7 +208,7 @@ TouchAttempt RayTracer::FindClosestContact(const Ray &ray) {
         Vec3f b = scene.vertex_data[triangle.indices.v1_id - 1];
         Vec3f c = scene.vertex_data[triangle.indices.v2_id - 1];
         TouchAttempt current_attempt = TriangleIntersectionTest(ray, a, b, c, triangle.material_id);
-        if (current_attempt.contact == BUM && current_attempt.t < closest_touch_attempt.t) {
+        if (current_attempt.contact == BOOB && current_attempt.t < closest_touch_attempt.t) {
             closest_touch_attempt = current_attempt;
         } else {
             continue;
@@ -218,7 +217,7 @@ TouchAttempt RayTracer::FindClosestContact(const Ray &ray) {
     // Check meshes.
     for (const auto &mesh : scene.meshes) {
         TouchAttempt current_attempt = MeshIntersectionTest(ray, mesh);
-        if (current_attempt.contact == BUM && current_attempt.t < closest_touch_attempt.t) {
+        if (current_attempt.contact == BODY && current_attempt.t < closest_touch_attempt.t) {
             closest_touch_attempt = current_attempt;
         } else {
             continue;
@@ -227,37 +226,21 @@ TouchAttempt RayTracer::FindClosestContact(const Ray &ray) {
     return closest_touch_attempt;
 }
 
-Vec3f RayTracer::CalculatePixelColor(const Ray &ray, int depth) {
+Vec3f RayTracer::CalculatePixelColor(const Ray &ray, const TouchAttempt &touch_attempt, const Camera &cam, int depth) {
     Vec3f pixel_color = {0, 0, 0};
-    TouchAttempt closest_touch = MISS;
-    closest_touch = FindClosestContact(ray);
-    if (closest_touch.t < 0) {
-        Material touched_mat = scene.materials[closest_touch.material_id - 1];
-
-        // Handle reflections early.
-        if (Length(touched_mat.mirror) > 0) {
-            Vec3f reflection_vector = Subtract(ray.direction,
-                                               Scale(
-                                                       2.0f * (Dot(closest_touch.normal, ray.direction)),
-                                                       closest_touch.normal));
-            Ray reflection_ray;
-            reflection_ray.origin = Add(closest_touch.position, Scale(scene.shadow_ray_epsilon, reflection_vector));
-            reflection_ray.direction = Normalize(reflection_vector);
-            Vec3f mirror_component = VectorScale(touched_mat.mirror, CalculatePixelColor(reflection_ray, depth + 1));
-
-            pixel_color = Add(pixel_color, mirror_component);
-        }
-        // Ambient shading after.
+    if (touch_attempt.contact != NAH) {
+        Material touched_mat = scene.materials[touch_attempt.material_id - 1];
+        // Ambient shading first.
         Vec3f ambient_component = VectorScale(scene.ambient_light, touched_mat.ambient);
         pixel_color = Add(pixel_color, ambient_component);
         // Then lighting.
         for (auto light : scene.point_lights) {
-            Vec3f light_vector = Subtract(light.position, closest_touch.position);
+            Vec3f light_vector = Subtract(light.position, touch_attempt.position);
             float light_distance = Length(light_vector);
             Vec3f light_component = Circumsize(light.intensity,
-                                               powf(Length(Subtract(closest_touch.position, light.position)), 2));
+                                               powf(Length(Subtract(touch_attempt.position, light.position)), 2));
             Ray light_ray;
-            light_ray.origin = Add(closest_touch.position, Scale(scene.shadow_ray_epsilon, Normalize(light_vector)));
+            light_ray.origin = Add(touch_attempt.position, Scale(scene.shadow_ray_epsilon, Normalize(light_vector)));
             light_ray.direction = Normalize(light_vector);
 
             // Shadows.
@@ -268,7 +251,7 @@ Vec3f RayTracer::CalculatePixelColor(const Ray &ray, int depth) {
             }
 
             // Diffuse.
-            Vec3f diffuse_component = Scale(std::max(0.0f, Dot(closest_touch.normal, Normalize(light_vector))),
+            Vec3f diffuse_component = Scale(std::max(0.0f, Dot(touch_attempt.normal, Normalize(light_vector))),
                                             VectorScale(touched_mat.diffuse, light_component));
             pixel_color = Add(pixel_color, diffuse_component);
 
@@ -277,6 +260,20 @@ Vec3f RayTracer::CalculatePixelColor(const Ray &ray, int depth) {
             h = Circumsize(h, Length(h));
             Vec3f specular_component = Add(pixel_color, specular_component);
         }
+        // Handle reflections last.
+        if (Length(touched_mat.mirror) > 0) {
+            Vec3f reflection_vector = Subtract(ray.direction,
+                                               Scale(
+                                                       2.0f * (Dot(touch_attempt.normal, ray.direction)),
+                                                       touch_attempt.normal));
+            Ray reflection_ray;
+            reflection_ray.origin = Add(touch_attempt.position, Scale(scene.shadow_ray_epsilon, reflection_vector));
+            reflection_ray.direction = Normalize(reflection_vector);
+            Vec3f mirror_component = VectorScale(touched_mat.mirror, CalculatePixelColor(reflection_ray, touch_attempt, cam, depth + 1));
+
+            pixel_color = Add(pixel_color, mirror_component);
+        }
+
         pixel_color.x = pixel_color.x > 255 ? 255 : pixel_color.x;
         pixel_color.y = pixel_color.y > 255 ? 255 : pixel_color.y;
         pixel_color.z = pixel_color.z > 255 ? 255 : pixel_color.z;
@@ -288,17 +285,16 @@ Vec3f RayTracer::CalculatePixelColor(const Ray &ray, int depth) {
     return pixel_color;
 }
 
-unsigned char *RayTracer::RenderScene(const Camera &camera, const int width, const int height) {
+unsigned char *RayTracer::RenderScene(const Camera &cam, const int width, const int height) {
 
     unsigned char *image = InitializeImage(width, height);
     for (int row = 0; row < height; row++) {
         for (int column = 0; column < width; column++) {
             Vec3f pixel_color;
-            Ray ray = GenerateEyeRay(row, column, camera);
-            pixel_color = CalculatePixelColor(ray, 0);
-            image[3 * (row * width + column)] = pixel_color.x;
-            image[3 * (row * width + column) + 1] = pixel_color.y;
-            image[3 * (row * width + column) + 2] = pixel_color.z;
+            Ray ray = GenerateEyeRay(row, column, cam);
+            TouchAttempt touch_attempt = MISS;
+            touch_attempt = FindClosestContact(ray);
+            pixel_color = CalculatePixelColor(ray, touch_attempt, cam, 0);
         }
     }
     return image;

@@ -84,10 +84,10 @@ public:
     static unsigned char *InitializeImage(const int width, const int height);
 
     // Calculates the color value for a pixel considering all scene parameters.
-    Vec3f CalculatePixelColor(const Ray &ray, int depth);
+    Vec3f CalculatePixelColor(const Ray &ray, const TouchAttempt &touch_attempt, const Camera &cam, int depth);
 
     // Renders the scene for the given camera.
-    unsigned char *RenderScene(const Camera &camera, const int width, const int height);
+    unsigned char *RenderScene(const Camera &cam, const int width, const int height);
 };
 
 #endif // __raytracer_h__
