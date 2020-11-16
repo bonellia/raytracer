@@ -28,8 +28,8 @@ Vec3f RayTracer::Scale(const float &lhs, const Vec3f &rhs) {
 Vec3f RayTracer::VectorScale(const Vec3f &lhs, const Vec3f &rhs) {
     Vec3f result;
     result.x = lhs.x * rhs.x;
-    result.y = lhs.x * rhs.y;
-    result.z = lhs.x * rhs.z;
+    result.y = lhs.y * rhs.y;
+    result.z = lhs.z * rhs.z;
     return result;
 }
 
@@ -237,14 +237,13 @@ Vec3f RayTracer::CalculatePixelColor(const Ray &ray, const TouchAttempt &touch_a
         for (auto light : scene.point_lights) {
             Vec3f light_vector = Subtract(light.position, touch_attempt.position);
             float light_distance = Length(light_vector);
-            Vec3f light_component = Circumsize(light.intensity,
-                                               powf(Length(Subtract(touch_attempt.position, light.position)), 2));
+            Vec3f irradiance = Circumsize(light.intensity,
+                                          powf(Length(Subtract(touch_attempt.position, light.position)), 2));
             Ray light_ray;
             light_ray.origin = Add(touch_attempt.position, Scale(scene.shadow_ray_epsilon, Normalize(light_vector)));
             light_ray.direction = Normalize(light_vector);
 
             // Shadows.
-            bool skip_rest = false;
             TouchAttempt shadow_touch = FindClosestContact(light_ray);
             if (shadow_touch.t > 0 && shadow_touch.t <= light_distance) {
                 continue;
@@ -252,7 +251,7 @@ Vec3f RayTracer::CalculatePixelColor(const Ray &ray, const TouchAttempt &touch_a
 
             // Diffuse.
             Vec3f diffuse_component = Scale(std::max(0.0f, Dot(touch_attempt.normal, Normalize(light_vector))),
-                                            VectorScale(touched_mat.diffuse, light_component));
+                                            VectorScale(touched_mat.diffuse, irradiance));
             pixel_color = Add(pixel_color, diffuse_component);
 
             // Specular (Blinn-Phong).
