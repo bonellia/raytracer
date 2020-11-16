@@ -5,6 +5,8 @@
 #include "definitions.h"
 #include <cmath>
 
+typedef unsigned char RGB[3];
+
 struct Ray {
     Vec3f origin;
     Vec3f direction;
@@ -26,7 +28,7 @@ struct TouchAttempt {
     int touched_object_no;
 };
 
-static constexpr TouchAttempt MISS = {-1, {0, 0, 0}, {0, 0, 0}, -1,  NAH, -1};
+static constexpr TouchAttempt MISS = {-1, {0, 0, 0}, {0, 0, 0}, -1, NAH, -1};
 
 class RayTracer {
 public:
@@ -72,7 +74,8 @@ public:
     TouchAttempt SphereIntersectionTest(const Ray &ray, const Sphere &sphere);
 
     // Tests a ray intersection with the given triangle, returns TouchAttempt information.
-    TouchAttempt TriangleIntersectionTest(const Ray &ray, const Vec3f &a, const Vec3f &b, const Vec3f &c, const int material_id);
+    TouchAttempt
+    TriangleIntersectionTest(const Ray &ray, const Vec3f &a, const Vec3f &b, const Vec3f &c, const int material_id);
 
     // Tests ray intersections for the triangles of a mesh and updates touch list.
     TouchAttempt MeshIntersectionTest(const Ray &ray, const Mesh &mesh);
@@ -98,6 +101,14 @@ public:
      */
     Vec3f CalculatePixelColor(const Ray &ray, const TouchAttempt &touch_attempt, const Camera &cam, int depth);
 
+    /*!
+     * Maps RGB values to image array.
+     * @param image The image
+     * @param row Row number of the pixel.
+     * @param column Column number of the pixel.
+     * @param color RGB value as a triplet.
+     */
+    void SetImagePixelRGB(unsigned char *&image, int row, int column, int width, const RGB color);
 
     /*!
      * Renders the scene for the given camera.
