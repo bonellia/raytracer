@@ -114,38 +114,38 @@ unsigned char *RayTracer::InitializeImage(int width, int height) {
     return image;
 }
 
-Touch RayTracer::SphereIntersectionTest(const Ray &ray, const Sphere &sphere) {
-    Touch touch;
+TouchAttempt RayTracer::SphereIntersectionTest(const Ray &ray, const Sphere &sphere) {
+    TouchAttempt touch_attempt;
     float delta = 0;
     Vec3f sphere_center = this->scene.vertex_data.at(sphere.center_vertex_id - 1);
-    float sphere_radius = sphere_radius = sphere.radius;
-    Vec3f origin_minus_center = Subtract(ray.origin, sphere_center);
-    float t, t1, t2;
-    float A = Dot(ray.direction, ray.direction);
-    float B = 2 * Dot(ray.direction, origin_minus_center);
-    float C = Dot(origin_minus_center, origin_minus_center) - sphere_radius * sphere_radius;
+    const float sphere_radius = sphere.radius;
+    const Vec3f origin_minus_center = Subtract(ray.origin, sphere_center);
+    float t;
+    const float A = Dot(ray.direction, ray.direction);
+    const float B = 2 * Dot(ray.direction, origin_minus_center);
+    const float C = Dot(origin_minus_center, origin_minus_center) - sphere_radius * sphere_radius;
     delta = B * B - 4 * A * C;
 
     if (delta > 0) {
-        t1 = (-B + sqrtf(delta)) / (2 * A);
-        t2 = (-B - sqrtf(delta)) / (2 * A);
+        // Successful hit, set touch attempt parameters.
         // Pick closer t value.
+        const float t1 = (-1 * B + std::sqrt(delta)) / 2 * A;
+        const float t2 = (-1 * B - std::sqrt(delta)) / 2 * A;
         t = std::min(t1, t2);
-        // But this t value needs to be further than near plane.
-        // Successful hit, set touch parameters.
-        touch.t = t;
-        touch.position = Add(ray.origin, Scale(t, ray.direction));
-        touch.normal = Normalize(Subtract(touch.position, sphere_center));
-        touch.material_id = sphere.material_id;
-        return touch;
+        touch_attempt.t = t;
+        touch_attempt.position = Add(ray.origin, Scale(t, ray.direction));
+        touch_attempt.normal = Circumsize(Subtract(touch_attempt.position, sphere_center), sphere_radius);
+        touch_attempt.material_id = sphere.material_id;
+        touch_attempt.contact = BUM;
+        return touch_attempt;
     }
     // If we reach here, bad luck:
     return MISS;
 }
 
-Touch RayTracer::TriangleIntersectionTest(const Ray ray, const Vec3f &a, const Vec3f &b, const Vec3f &c,
-                                          const int material_id) {
-    Touch touch;
+TouchAttempt RayTracer::TriangleIntersectionTest(const Ray ray, const Vec3f &a, const Vec3f &b, const Vec3f &c,
+                                                 const int material_id) {
+    TouchAttempt touch;
     Vec3f a_b = Subtract(a, b);
     Vec3f a_c = Subtract(a, c);
     Vec3f a_o = Subtract(b, ray.origin);
@@ -174,51 +174,46 @@ Touch RayTracer::TriangleIntersectionTest(const Ray ray, const Vec3f &a, const V
     return touch;
 }
 
-Touch RayTracer::MeshIntersectionTest(const Ray &ray, const Mesh &mesh) {
-    Touch final_touch = MISS;
+TouchAttempt RayTracer::MeshIntersectionTest(const Ray &ray, const Mesh &mesh) {
+    TouchAttempt touch_attempt = MISS;
     int face_count = mesh.faces.size();
     for (int face_no = 0; face_no < face_count; face_no++) {
-        Touch triangle_touch;
+        TouchAttempt triangle_touch;
         Vec3f v0 = scene.vertex_data[mesh.faces[face_no].v0_id - 1];
         Vec3f v1 = scene.vertex_data[mesh.faces[face_no].v1_id - 1];
         Vec3f v2 = scene.vertex_data[mesh.faces[face_no].v2_id - 1];
         triangle_touch = TriangleIntersectionTest(ray, v0, v1, v2, mesh.material_id);
         if (triangle_touch.t >= 0) {
-            if (final_touch.t == -1) {
+            if (touch_attempt.t == -1) {
                 continue;
             } else {
-                if (final_touch.t > triangle_touch.t) {
-                    final_touch = triangle_touch;
+                if (touch_attempt.t > triangle_touch.t) {
+                    touch_attempt = triangle_touch;
                 }
             }
         }
     }
-    return final_touch;
+    return touch_attempt;
 }
 
-Touch RayTracer::FindClosestTouch(const Ray &ray) {
-    Touch closest_touch = MISS;
-
+TouchAttempt RayTracer::FindClosestContact(const Ray &ray) {
+    TouchAttempt closest_touch_attempt = MISS;
     // Check spheres.
     for (const auto &sphere : scene.spheres) {
-        Touch current_sphere_touch = SphereIntersectionTest(ray, sphere);
-        if (current_sphere_touch.t == -1) {
-            continue;
+        TouchAttempt current_attempt = SphereIntersectionTest(ray, sphere);
+        if (current_attempt.contact == BUM && current_attempt.t < closest_touch_attempt.t) {
+            closest_touch_attempt = current_attempt;
         } else {
-            if (closest_touch.t > current_sphere_touch.t) {
-                closest_touch = current_sphere_touch;
-            }
+            continue;
         }
     }
     // Check meshes.
     for (const auto &mesh : scene.meshes) {
-        Touch current_mesh_touch = MeshIntersectionTest(ray, mesh);
-        if (current_mesh_touch.t == -1) {
-            continue;
+        TouchAttempt current_attempt = MeshIntersectionTest(ray, mesh);
+        if (current_attempt.contact == BUM && current_attempt.t < closest_touch_attempt.t) {
+            closest_touch_attempt = current_attempt;
         } else {
-            if (closest_touch.t > current_mesh_touch.t) {
-                closest_touch = current_mesh_touch;
-            }
+            continue;
         }
     }
     // Check triangles.
@@ -226,23 +221,21 @@ Touch RayTracer::FindClosestTouch(const Ray &ray) {
         Vec3f v0 = scene.vertex_data[triangle.indices.v0_id - 1];
         Vec3f v1 = scene.vertex_data[triangle.indices.v1_id - 1];
         Vec3f v2 = scene.vertex_data[triangle.indices.v2_id - 1];
-        Touch current_triangle_touch = TriangleIntersectionTest(ray, v0, v1, v2, triangle.material_id);
-        if (current_triangle_touch.t == -1) {
-            continue;
+        TouchAttempt current_attempt = TriangleIntersectionTest(ray, v0, v1, v2, triangle.material_id);
+        if (current_attempt.contact == BUM && current_attempt.t < closest_touch_attempt.t) {
+            closest_touch_attempt = current_attempt;
         } else {
-            if (closest_touch.t > current_triangle_touch.t) {
-                closest_touch = current_triangle_touch;
-            }
+            continue;
         }
     }
-    return closest_touch;
+    return closest_touch_attempt;
 }
 
 Vec3f RayTracer::CalculatePixelColor(const Ray &ray, int depth) {
     Vec3f pixel_color = {0, 0, 0};
-    Touch closest_touch = MISS;
-    closest_touch = FindClosestTouch(ray);
-    if (closest_touch.t > 0) {
+    TouchAttempt closest_touch = MISS;
+    closest_touch = FindClosestContact(ray);
+    if (closest_touch.t < 0) {
         Material touched_mat = scene.materials[closest_touch.material_id - 1];
 
         // Handle reflections early.
@@ -273,7 +266,7 @@ Vec3f RayTracer::CalculatePixelColor(const Ray &ray, int depth) {
 
             // Shadows.
             bool skip_rest = false;
-            Touch shadow_touch = FindClosestTouch(light_ray);
+            TouchAttempt shadow_touch = FindClosestContact(light_ray);
             if (shadow_touch.t > 0 && shadow_touch.t <= light_distance) {
                 continue;
             }
@@ -288,14 +281,14 @@ Vec3f RayTracer::CalculatePixelColor(const Ray &ray, int depth) {
             h = Circumsize(h, Length(h));
             Vec3f specular_component = Add(pixel_color, specular_component);
         }
+        pixel_color.x = pixel_color.x > 255 ? 255 : pixel_color.x;
+        pixel_color.y = pixel_color.y > 255 ? 255 : pixel_color.y;
+        pixel_color.z = pixel_color.z > 255 ? 255 : pixel_color.z;
         return pixel_color;
     }
     pixel_color.x = (float) scene.background_color.x;
     pixel_color.y = (float) scene.background_color.y;
     pixel_color.z = (float) scene.background_color.z;
-    pixel_color.x = pixel_color.x > 255 ? 255 : pixel_color.x;
-    pixel_color.y = pixel_color.y > 255 ? 255 : pixel_color.y;
-    pixel_color.z = pixel_color.z > 255 ? 255 : pixel_color.z;
     return pixel_color;
 }
 

@@ -9,22 +9,30 @@ struct Ray {
     Vec3f origin;
     Vec3f direction;
 };
+/*
+    For debugging purposes.
+    Sphere, Triangle, Mesh, None
+*/
+enum Contact {
+    BUM, BOOB, BODY, NAH
+};
 
-struct Touch {
+struct TouchAttempt {
     float t;
     parser::Vec3f position;
     parser::Vec3f normal;
     int material_id;
+    Contact contact;
     int touched_object_no;
 };
 
-static constexpr Touch MISS = {-1, {0, 0, 0}, {0, 0, 0}, -1, -1};
+static constexpr TouchAttempt MISS = {-1, {0, 0, 0}, {0, 0, 0}, -1,  NAH, -1};
 
 class RayTracer {
 public:
 
     Scene scene;
-    std::vector<Touch> touch_list;
+    std::vector<TouchAttempt> touch_list;
 
     // Geometry related methods
     Vec3f Cross(const Vec3f &lhs, const Vec3f &rhs);
@@ -60,17 +68,17 @@ public:
     // Generates a ray from camera to near plane.
     Ray GenerateEyeRay(const int pixel_row, const int pixel_column, const Camera &cam);
 
-    // Tests a ray intersection with the given sphere, returns Touch information.
-    Touch SphereIntersectionTest(const Ray &ray, const Sphere &sphere);
+    // Tests a ray intersection with the given sphere, returns TouchAttempt information.
+    TouchAttempt SphereIntersectionTest(const Ray &ray, const Sphere &sphere);
 
-    // Tests a ray intersection with the given triangle, returns Touch information.
-    Touch TriangleIntersectionTest(const Ray ray, const Vec3f &a, const Vec3f &b, const Vec3f &c, const int material_id);
+    // Tests a ray intersection with the given triangle, returns TouchAttempt information.
+    TouchAttempt TriangleIntersectionTest(const Ray ray, const Vec3f &a, const Vec3f &b, const Vec3f &c, const int material_id);
 
     // Tests ray intersections for the triangles of a mesh and updates touch list.
-    Touch MeshIntersectionTest(const Ray &ray, const Mesh &mesh);
+    TouchAttempt MeshIntersectionTest(const Ray &ray, const Mesh &mesh);
 
     // Tests ray intersections for all objects within the scene and returns the closest touching point information.
-    Touch FindClosestTouch(const Ray &ray);
+    TouchAttempt FindClosestContact(const Ray &ray);
 
     // Fills the initial image with red colors.
     static unsigned char *InitializeImage(const int width, const int height);
