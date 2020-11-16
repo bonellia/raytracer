@@ -138,9 +138,9 @@ TouchAttempt RayTracer::SphereIntersectionTest(const Ray &ray, const Sphere &sph
     return MISS;
 }
 
-TouchAttempt RayTracer::TriangleIntersectionTest(const Ray ray, const Vec3f &a, const Vec3f &b, const Vec3f &c,
+TouchAttempt RayTracer::TriangleIntersectionTest(const Ray &ray, const Vec3f &a, const Vec3f &b, const Vec3f &c,
                                                  const int material_id) {
-    TouchAttempt touch_attempt;
+    TouchAttempt touch_attempt = MISS;
     Vec3f a_b = Subtract(a, b);
     Vec3f a_c = Subtract(a, c);
     Vec3f a_o = Subtract(a, ray.origin);
@@ -205,10 +205,10 @@ TouchAttempt RayTracer::FindClosestContact(const Ray &ray) {
 
     // Check triangles.
     for (const auto &triangle : scene.triangles) {
-        Vec3f v0 = scene.vertex_data[triangle.indices.v0_id - 1];
-        Vec3f v1 = scene.vertex_data[triangle.indices.v1_id - 1];
-        Vec3f v2 = scene.vertex_data[triangle.indices.v2_id - 1];
-        TouchAttempt current_attempt = TriangleIntersectionTest(ray, v0, v1, v2, triangle.material_id);
+        Vec3f a = scene.vertex_data[triangle.indices.v0_id - 1];
+        Vec3f b = scene.vertex_data[triangle.indices.v1_id - 1];
+        Vec3f c = scene.vertex_data[triangle.indices.v2_id - 1];
+        TouchAttempt current_attempt = TriangleIntersectionTest(ray, a, b, c, triangle.material_id);
         if (current_attempt.contact == BUM && current_attempt.t < closest_touch_attempt.t) {
             closest_touch_attempt = current_attempt;
         } else {

@@ -72,7 +72,7 @@ public:
     TouchAttempt SphereIntersectionTest(const Ray &ray, const Sphere &sphere);
 
     // Tests a ray intersection with the given triangle, returns TouchAttempt information.
-    TouchAttempt TriangleIntersectionTest(const Ray ray, const Vec3f &a, const Vec3f &b, const Vec3f &c, const int material_id);
+    TouchAttempt TriangleIntersectionTest(const Ray &ray, const Vec3f &a, const Vec3f &b, const Vec3f &c, const int material_id);
 
     // Tests ray intersections for the triangles of a mesh and updates touch list.
     TouchAttempt MeshIntersectionTest(const Ray &ray, const Mesh &mesh);
