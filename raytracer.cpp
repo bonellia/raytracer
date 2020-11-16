@@ -83,18 +83,19 @@ float RayTracer::Determinant(Vec3f a, Vec3f b, Vec3f c) {
     return result;
 }
 
-Ray RayTracer::GenerateEyeRay(int x, int y, parser::Camera cam) {
+Ray RayTracer::GenerateEyeRay(int pixel_row, int pixel_column, parser::Camera cam) {
+    // We find the position of the direction vector by traversing near plane.
     Ray ray;
-    Vec3f su, sv, s;
-    ray.origin = cam.position;
-    float pixel_width = cam.near_plane.y - cam.near_plane.x / (float) cam.image_width;
-    float pixel_height = (cam.near_plane.w - cam.near_plane.z) / cam.image_height;
-    Vec3f cam_u = Cross(cam.gaze, cam.up);
-    su = Scale(cam.near_plane.x + (x + 0.5) * (pixel_width), cam_u);
-    sv = Scale(cam.near_plane.z + (x + 0.5) * (pixel_height), cam.up);
-    s = Add(su, sv);
+    Vec3f plane_center = Add(cam.position, Scale(cam.near_distance, cam.gaze));
+    Vec3f cam_right_vector = Cross(cam.gaze, cam.up);
+    Vec3f plane_top_left = Add(plane_center,
+                               Add(Scale(cam.near_plane.x, cam_right_vector), Scale(cam.near_plane.w, cam.up)));
+    float u = (pixel_column + 0.5) * (cam.near_plane.y - cam.near_plane.x) / cam.image_width;
+    float v = (pixel_row + 0.5) * (cam.near_plane.w = cam.near_plane.z) / cam.image_height;
 
-    ray.direction = Add(Scale(cam.near_distance, cam.gaze), s);
+    Vec3f pixel_position = Add(plane_top_left, Add(Scale(u, cam_right_vector), Scale(v, cam.up)));
+    ray.origin = cam.position;
+    ray.direction = Normalize(Subtract(pixel_position, ray.origin));
     return ray;
 }
 
@@ -119,7 +120,7 @@ Touch RayTracer::SphereIntersectionTest(Ray ray, Sphere sphere) {
     float sphere_radius;
     float t, t1, t2;
 
-    sphere_center = this->scene.vertex_data.at(sphere.center_vertex_id-1);
+    sphere_center = this->scene.vertex_data.at(sphere.center_vertex_id - 1);
     sphere_radius = sphere.radius;
 
     C += powf((ray.origin.x - sphere_center.x), 2);
@@ -298,7 +299,7 @@ Vec3f RayTracer::CalculatePixelColor(Ray ray, int depth) {
 
             // Diffuse.
             Vec3f diffuse_component = Scale(std::max(0.0f, Dot(closest_touch.normal, Normalize(light_vector))),
-                                                           VectorScale(touched_mat.diffuse, light_component));
+                                            VectorScale(touched_mat.diffuse, light_component));
             pixel_color = Add(pixel_color, diffuse_component);
 
             // Specular (Blinn-Phong).
@@ -317,14 +318,14 @@ Vec3f RayTracer::CalculatePixelColor(Ray ray, int depth) {
 unsigned char *RayTracer::RenderScene(Camera camera, int width, int height) {
 
     unsigned char *image = InitializeImage(width, height);
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
+    for (int row = 0; row < height; row++) {
+        for (int column = 0; column < width; column++) {
             Vec3f pixel_color = {0, 0, 0};
-            Ray ray = GenerateEyeRay(i, j, camera);
+            Ray ray = GenerateEyeRay(row, column, camera);
             pixel_color = CalculatePixelColor(ray, 0);
-            image[3 * (i * width + j)] = pixel_color.x;
-            image[3 * (i * width + j) + 1] = pixel_color.y;
-            image[3 * (i * width + j) + 2] = pixel_color.z;
+            image[3 * (row * width + column)] = pixel_color.x;
+            image[3 * (row * width + column) + 1] = pixel_color.y;
+            image[3 * (row * width + column) + 2] = pixel_color.z;
         }
     }
     return image;

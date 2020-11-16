@@ -58,7 +58,7 @@ public:
     float Determinant(Vec3f a, Vec3f b, Vec3f c);
 
     // Generates a ray from camera to near plane.
-    Ray GenerateEyeRay(int x, int y, Camera cam);
+    Ray GenerateEyeRay(int pixel_row, int pixel_column, Camera cam);
 
     // Tests a ray intersection with the given sphere, returns Touch information.
     Touch SphereIntersectionTest(Ray ray, Sphere sphere);
