@@ -29,6 +29,10 @@ raytracer.h
 /mnt/c/Users/Kril/CLionProjects/raytracer/raytracer.h
 util.h
 /mnt/c/Users/Kril/CLionProjects/raytracer/util.h
+thread
+-
+future
+-
 
 /mnt/c/Users/Kril/CLionProjects/raytracer/raytracer.h
 parser.h
