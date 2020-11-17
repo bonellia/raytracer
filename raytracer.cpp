@@ -189,14 +189,15 @@ TouchAttempt RayTracer::MeshIntersectionTest(const Ray &ray, const Mesh &mesh) {
 
 TouchAttempt RayTracer::FindClosestContact(const Ray &ray) {
     TouchAttempt closest_touch_attempt = MISS;
-    closest_touch_attempt.t = std::numeric_limits<float>::max();
+    float min_t = std::numeric_limits<float>::max();
+
     // Check spheres.
     for (const auto &sphere : scene.spheres) {
         TouchAttempt current_attempt = SphereIntersectionTest(ray, sphere);
-        if (current_attempt.contact == BUM && current_attempt.t < closest_touch_attempt.t) {
+        float current_t = current_attempt.t;
+        if (current_t > 0 && current_t < min_t) {
+            min_t = current_t;
             closest_touch_attempt = current_attempt;
-        } else {
-            continue;
         }
     }
 
@@ -206,41 +207,41 @@ TouchAttempt RayTracer::FindClosestContact(const Ray &ray) {
         Vec3f b = scene.vertex_data[triangle.indices.v1_id - 1];
         Vec3f c = scene.vertex_data[triangle.indices.v2_id - 1];
         TouchAttempt current_attempt = TriangleIntersectionTest(ray, a, b, c, triangle.material_id);
-        if (current_attempt.contact == BOOB && current_attempt.t < closest_touch_attempt.t) {
+        float current_t = current_attempt.t;
+        if (current_t > 0 && current_t < min_t) {
+            min_t = current_t;
             closest_touch_attempt = current_attempt;
-        } else {
-            continue;
         }
     }
     // Check meshes.
     for (const auto &mesh : scene.meshes) {
         TouchAttempt current_attempt = MeshIntersectionTest(ray, mesh);
-        if (current_attempt.contact == BODY && current_attempt.t < closest_touch_attempt.t) {
+        float current_t = current_attempt.t;
+        if (current_t > 0 && current_t < min_t) {
+            min_t = current_t;
             closest_touch_attempt = current_attempt;
-        } else {
-            continue;
         }
     }
     return closest_touch_attempt;
 }
 
-Vec3f RayTracer::CalculatePixelColor(const Ray &ray, const TouchAttempt &touch_attempt, const Camera &cam, int depth) {
+Vec3f RayTracer::CalculatePixelColor(const Ray &ray, const Camera &cam, int depth) {
     Vec3f pixel_color = {0, 0, 0};
     if (depth > scene.max_recursion_depth)
         return pixel_color;
+    TouchAttempt touch_attempt = MISS;
+    touch_attempt = FindClosestContact(ray);
     if (touch_attempt.contact != NAH) {
         Material touched_mat = scene.materials[touch_attempt.material_id - 1];
         // Handle reflections first.
         if (Length(touched_mat.mirror) > 0) {
-            Vec3f reflection_vector = Subtract(ray.direction,
-                                               Scale(
-                                                       2.0f * (Dot(touch_attempt.normal, ray.direction)),
-                                                       touch_attempt.normal));
+            Vec3f reflection_vector = Subtract(ray.direction, Scale(2.0f * (Dot(touch_attempt.normal, ray.direction)),
+                                                                    touch_attempt.normal));
             Ray reflection_ray;
             reflection_ray.origin = Add(touch_attempt.position, Scale(scene.shadow_ray_epsilon, reflection_vector));
             reflection_ray.direction = Normalize(reflection_vector);
             Vec3f mirror_component = VectorScale(touched_mat.mirror,
-                                                 CalculatePixelColor(reflection_ray, touch_attempt, cam, depth + 1));
+                                                 CalculatePixelColor(reflection_ray, cam, depth + 1));
 
             pixel_color = Add(pixel_color, mirror_component);
         }
@@ -301,20 +302,11 @@ void RayTracer::RenderBar(const Camera &cam, unsigned char *&image, const int wi
         for (int column = width_from; column < width_to; column++) {
             Vec3f pixel_color;
             Ray ray = GenerateEyeRay(row, column, cam);
-            TouchAttempt touch_attempt = MISS;
-            touch_attempt = FindClosestContact(ray);
-            pixel_color = CalculatePixelColor(ray, touch_attempt, cam, 0);
+            pixel_color = CalculatePixelColor(ray, cam, 0);
             RGB clamped_pixel_color;
             clamped_pixel_color[0] = pixel_color.x > 255 ? 255 : (int) ceilf(pixel_color.x);
             clamped_pixel_color[1] = pixel_color.y > 255 ? 255 : (int) ceilf(pixel_color.y);
             clamped_pixel_color[2] = pixel_color.z > 255 ? 255 : (int) ceilf(pixel_color.z);
-
-            /*
-            if (clamped_pixel_color[0] != 0 || clamped_pixel_color[1] != 0 || clamped_pixel_color[2] != 0) {
-                std::cout << clamped_pixel_color[0]<< ' ' << clamped_pixel_color[1] << ' ' << clamped_pixel_color[2] << ' ' << std::endl;
-                std::cout << row << ' ' << column << std::endl;
-            }
-            */
             SetImagePixelRGB(image, row, column, cam.image_width, clamped_pixel_color);
         }
     }

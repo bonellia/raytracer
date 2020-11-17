@@ -99,7 +99,7 @@ public:
      * @param depth Maximum number of recursive calls.
      * @return The vector with color data.
      */
-    Vec3f CalculatePixelColor(const Ray &ray, const TouchAttempt &touch_attempt, const Camera &cam, int depth);
+    Vec3f CalculatePixelColor(const Ray &ray, const Camera &cam, int depth);
 
     /*!
      * * Maps RGB values to image array.
