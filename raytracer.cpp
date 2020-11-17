@@ -3,7 +3,8 @@
 #include "ppm.h"
 #include "raytracer.h"
 #include "util.h"
-
+#include <thread>
+#include <future>
 
 Vec3f RayTracer::Cross(const Vec3f &lhs, const Vec3f &rhs) {
     return {
@@ -288,17 +289,16 @@ Vec3f RayTracer::CalculatePixelColor(const Ray &ray, const TouchAttempt &touch_a
     return pixel_color;
 }
 
-void RayTracer::SetImagePixelRGB(unsigned char *&image, int row, int column, int width, const RGB color) {
+void RayTracer::SetImagePixelRGB(unsigned char *&image, int row, int column, const int width, const RGB color) {
     image[3 * (row * width + column)] = color[0];
     image[3 * (row * width + column) + 1] = color[1];
     image[3 * (row * width + column) + 2] = color[2];
 }
 
-unsigned char *RayTracer::RenderScene(const Camera &cam, const int width, const int height) {
-
-    unsigned char *image = InitializeImage(width, height);
+void RayTracer::RenderBar(const Camera &cam, unsigned char *&image, const int width_from, const int width_to,
+                          const int height) {
     for (int row = 0; row < height; row++) {
-        for (int column = 0; column < width; column++) {
+        for (int column = width_from; column < width_to; column++) {
             Vec3f pixel_color;
             Ray ray = GenerateEyeRay(row, column, cam);
             TouchAttempt touch_attempt = MISS;
@@ -308,7 +308,38 @@ unsigned char *RayTracer::RenderScene(const Camera &cam, const int width, const 
             clamped_pixel_color[0] = pixel_color.x > 255 ? 255 : (int) ceilf(pixel_color.x);
             clamped_pixel_color[1] = pixel_color.y > 255 ? 255 : (int) ceilf(pixel_color.y);
             clamped_pixel_color[2] = pixel_color.z > 255 ? 255 : (int) ceilf(pixel_color.z);
-            SetImagePixelRGB(image, row, column, width, clamped_pixel_color);
+
+            /*
+            if (clamped_pixel_color[0] != 0 || clamped_pixel_color[1] != 0 || clamped_pixel_color[2] != 0) {
+                std::cout << clamped_pixel_color[0]<< ' ' << clamped_pixel_color[1] << ' ' << clamped_pixel_color[2] << ' ' << std::endl;
+                std::cout << row << ' ' << column << std::endl;
+            }
+            */
+            SetImagePixelRGB(image, row, column, cam.image_width, clamped_pixel_color);
+        }
+    }
+}
+
+unsigned char *RayTracer::RenderScene(const Camera &cam, const int width, const int height) {
+
+    unsigned char *image = InitializeImage(width, height);
+
+    const unsigned int thread_count = std::max(std::thread::hardware_concurrency(), 1u);
+    std::cout << "Thread count is: " << thread_count << std::endl;
+    const int stride = static_cast<int>(width / thread_count);
+    {
+        std::vector<std::future<void>> partial_render_tasks;
+
+        for (std::size_t i = 0; i < thread_count; ++i) {
+            partial_render_tasks.push_back(std::async(std::launch::async, [&, i] {
+                RenderBar(cam, image, i * stride, (i + 1) * stride, height);
+            }));
+        }
+        // For a potential leftover bar in case image width is not a multitude of thread_count.
+        if (width % thread_count) {
+            partial_render_tasks.push_back(std::async(std::launch::async, [&] {
+                RenderBar(cam, image, thread_count * stride, width, height);
+            }));
         }
     }
     return image;
@@ -316,6 +347,11 @@ unsigned char *RayTracer::RenderScene(const Camera &cam, const int width, const 
 
 int main(int argc, char *argv[]) {
     // Sample usage for reading an XML scene file
+    // Better make use of argc:
+    if (argc < 2) {
+        printf("Usage: ./raytracer <scene file>\n");
+        return 1;
+    }
     Scene scene;
     util::Util util;
     RayTracer ray_tracer;
@@ -329,6 +365,8 @@ int main(int argc, char *argv[]) {
         unsigned char *image = ray_tracer.RenderScene(camera, width, height);
         write_ppm(camera.image_name.c_str(), image, width, height);
     }
+
+
     // The code below creates a test pattern and writes
     // it to a PPM file to demonstrate the usage of the
     // ppm_write function.

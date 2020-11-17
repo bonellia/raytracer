@@ -68,14 +68,14 @@ public:
     float Determinant(const Vec3f &a, const Vec3f &b, const Vec3f &c);
 
     // Generates a ray from camera to near plane.
-    Ray GenerateEyeRay(const int pixel_row, const int pixel_column, const Camera &cam);
+    Ray GenerateEyeRay(int pixel_row, int pixel_column, const Camera &cam);
 
     // Tests a ray intersection with the given sphere, returns TouchAttempt information.
     TouchAttempt SphereIntersectionTest(const Ray &ray, const Sphere &sphere);
 
     // Tests a ray intersection with the given triangle, returns TouchAttempt information.
     TouchAttempt
-    TriangleIntersectionTest(const Ray &ray, const Vec3f &a, const Vec3f &b, const Vec3f &c, const int material_id);
+    TriangleIntersectionTest(const Ray &ray, const Vec3f &a, const Vec3f &b, const Vec3f &c, int material_id);
 
     // Tests ray intersections for the triangles of a mesh and updates touch list.
     TouchAttempt MeshIntersectionTest(const Ray &ray, const Mesh &mesh);
@@ -89,12 +89,12 @@ public:
      * @param height Row count as pixels.
      * @return
      */
-    static unsigned char *InitializeImage(const int width, const int height);
+    static unsigned char *InitializeImage(int width, int height);
 
     /*!
      * Calculates the color value for a pixel considering all scene parameters.
      * @param ray Ray that intersects the current pixel value on near plane.
-     * @param touch_attempt
+     * @param touch_attempt Information for the ray surface intersection test.
      * @param cam Camera that used for color calculation. Needed for external rays.
      * @param depth Maximum number of recursive calls.
      * @return The vector with color data.
@@ -102,22 +102,33 @@ public:
     Vec3f CalculatePixelColor(const Ray &ray, const TouchAttempt &touch_attempt, const Camera &cam, int depth);
 
     /*!
-     * Maps RGB values to image array.
-     * @param image The image
+     * * Maps RGB values to image array.
+     * @param image The image.
      * @param row Row number of the pixel.
      * @param column Column number of the pixel.
      * @param color RGB value as a triplet.
+     * @param width Total width of the image.
+     * @param color A triplet with red, green, blue values.
      */
     void SetImagePixelRGB(unsigned char *&image, int row, int column, int width, const RGB color);
+    /*!
+     * Utilizes parallelization by rending a vertical bar fraction of the desired image.
+     * @param cam Camera that used for rendering.
+     * @param image The image.
+     * @param width_from Left bound index of the image part.
+     * @param width_to Right bound index of the image part.
+     * @param height Row count to render.
+     */
+    void RenderBar(const Camera &cam, unsigned char *&image, int width_from, int width_to, int height);
 
     /*!
      * Renders the scene for the given camera.
-     * @param cam Camera that used for rendering
-     * @param width Column count to render
-     * @param height Row count to render
+     * @param cam Camera that used for rendering.
+     * @param width Column count to render.
+     * @param height Row count to render.
      * @return One dimensional array that contains the color values (e.g., 255255255...)
      */
-    unsigned char *RenderScene(const Camera &cam, const int width, const int height);
+    unsigned char *RenderScene(const Camera &cam, int width, int height);
 };
 
 #endif // __raytracer_h__
