@@ -225,6 +225,8 @@ TouchAttempt RayTracer::FindClosestContact(const Ray &ray) {
 
 Vec3f RayTracer::CalculatePixelColor(const Ray &ray, const TouchAttempt &touch_attempt, const Camera &cam, int depth) {
     Vec3f pixel_color = {0, 0, 0};
+    if (depth > scene.max_recursion_depth)
+        return pixel_color;
     if (touch_attempt.contact != NAH) {
         Material touched_mat = scene.materials[touch_attempt.material_id - 1];
         // Handle reflections first.
@@ -302,11 +304,11 @@ unsigned char *RayTracer::RenderScene(const Camera &cam, const int width, const 
             TouchAttempt touch_attempt = MISS;
             touch_attempt = FindClosestContact(ray);
             pixel_color = CalculatePixelColor(ray, touch_attempt, cam, 0);
-            // TODO: Fix the loop.
-            if (pixel_color.x != 0 || pixel_color.y != 0 ||pixel_color.z != 0) {
-                std::cout << pixel_color.x << ' ' << pixel_color.y << ' ' << pixel_color.z << ' ' << std::endl;
-            }
-            // TODO: Add color to char*.
+            RGB clamped_pixel_color;
+            clamped_pixel_color[0] = pixel_color.x > 255 ? 255 : (int) ceilf(pixel_color.x);
+            clamped_pixel_color[1] = pixel_color.y > 255 ? 255 : (int) ceilf(pixel_color.y);
+            clamped_pixel_color[2] = pixel_color.z > 255 ? 255 : (int) ceilf(pixel_color.z);
+            SetImagePixelRGB(image, row, column, width, clamped_pixel_color);
         }
     }
     return image;
