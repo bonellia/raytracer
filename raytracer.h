@@ -1,4 +1,4 @@
-#ifndef __rayrtacer_h__
+#ifndef __raytracer_h__
 #define __raytracer_h__
 
 #include "parser.h"
